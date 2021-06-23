@@ -1,231 +1,572 @@
-# 创始人
-
-联邦理工学院的马丁·奥德斯基（Martin Odersky）于2001年开始设计Scala。
-
-# Scala与Java
-
-https://www.processon.com/diagraming/60cb70d607912975024fb081
-
-
-
-# 函数柯力化&闭包
-
-**说明**
-
-函数柯里化：将一个接收多个参数的函数转化成一次接受一个参数的函数过程，可以简单的理解为一种特殊的参数列表声明方式。
-
-
-
-```scala
-object TestFunction {
-  val sum = (x: Int, y: Int, z: Int) => x + y + z
-  val sum1 = (x: Int) => {
-​    y: Int => {
-​      z: Int => {
-​        x + y + z
-​      }
-​    }
-  }
-  val sum2 = (x: Int) => (y: Int) => (z: Int) => x + y + z
-  def sum3(x: Int)(y: Int)(z: Int) = x + y + z
-  def main(args: Array[String]): Unit = {
-​    sum(1, 2, 3)
-​    sum1(1)(2)(3)
-​    sum2(1)(2)(3)
-​    sum3(1)(2)(3)
-      //用 =>连接每个参数等价于直接写多个括号传入参数
-  }
-}
-```
-
-
-
-闭包：就是**一个函数**和与**其相关的引用环境（变量）**组合的一个**整体**(实体)
-
-
-
-```scala
-//外部变量
-var z: Int = 10
-//闭包
-def f(y: Int): Int = {
-​      z + y
-}
-```
-
-
-
-# 控制抽象
-
-Scala中可自定义流程控制语句，即所谓的控制抽象。
-
-案例：定义如下控制结构
-
-scala中，代码块（block），可视为无参函数，作为 =>Unit类型的参数值。
-
-```scala
-object TestBlock {
-
-  def loop(n: Int)(op: => Unit): Unit = {//传入的参数是一个无参函数op: => Unit，就是下面的println("test")
-    if (n > 0) {
-      op
-      loop(n - 1)(op)
-    }
-  }
-
-  def main(args: Array[String]): Unit = {
-    loop(5) {
-      println("test")
-    }
-
-  }
-```
-
-
-
-#  特质（Trait）-Java中的接口
-
-Scala中，采用特质trait（特征）来代替接口的概念
-
-多个类具有相同的特征（特征）时，就可以将这个特质（特征）独立出来，采用关键字trait声明
-
-Scala中的trait中即可以有抽象属性和方法，也可以有具体的属性和方法，一个类可以混入（mixin）多个特质。
-
-
-
-对比Java**
-
-**Java 7**，那么接口中可以包含的内容有：
-
-​	常量
-
-​	抽象方法
-
-**Java 8**，还可以额外包含有：
-
-​	默认方法
-
-​	静态方法
-
-**Java 9**，还可以额外包含有：
-
-​	私有方法
-
-****
-
-Scala引入trait特征，第一可以替代Java的接口，第二个也是对单继承机制的一种补充。
-
-
-
-## **特质叠加**
-
-scala可以多实现,如果子类实现了多个trait,这多个trait中都一个同名方法,参数列表也一样,此时子类的对象在调用该同名方法的时候默认会报错。可以在子类中通过重写同名方法解决报错问题。
-
-子类重写同名方法之后,如果需要在方法体中调用父trait的同名方法,可以通过 super.同名方法/super[特质名].同名方法 的形式调用
-	super.同名方法 调用的继承顺序最后一个trait的同名方法
-	super[特质名].同名方法 调用的指定trait的同名方法
-	如果子类继承的多个父trait都有一个共同的父trait,而且在方法中都有通过super调用同名方法,此时方法的调用顺序是**按照继承顺序从右向左**开始调用
-
-## 特质的自身类型（Self Type）
-
-提醒子类在继承/实现trait的时候必须提前继承/实现指定class/trait
-
-《Programming in Scala》一书对“自身类型”（Self Type）的解释是：
-“A self type of a trait is the assumed type of this,the receiver, to be used within the trait. Any concrete class that mixes in the trait must ensure that its type conforms to the trait’s self type.”
-
-一个特质的“自身类型”是这个特质要求的“this”指针（引用）的“实际”类型，它会作为声明的“那个类型”的实例在这个特质中使用，从而可以让这个特质轻松地调用“那个类型”的字段和方法。所以，任何混入这个特质的具体类必须要同时保证它还是这个特质“自身类型”声明的“那个类型”。
-
-
-案例：
-
-```scala
-trait Car {
-    this: Engine => // self-type
-    def drive() {
-        start()
-        println("Vroom vroom")
-    }
-    def park() {
-        println("Break!")
-        stop()
-    }
-}
-
-val myCar = new Car extends DieselEngine
-
-```
-
-`this:Engine =>`就是我们说的自身类型声明，这告诉编译器，所有继承Car的具体类必须同时也是一个Engine，因为Car的业务代码里已经把this当成一个Engine在使用使用了（调用了它的`start`和`stop`方法），如果具体类无法满足Car的这一要求，编译就将失败。
-
-
-
-## “蛋糕模式”（Cake Pattern）
-
-蛋糕模式的思路是：假如A依赖B，我们用一个特质把被依赖方B包裹起来，我们可以叫它BComp,再用一个特质把依赖A方包裹起来，我们可以叫它AComp,我们会把AComp的自身类型声明为BComp, 这样我们可以在AComp中自由引用BComp的所有成员，这样从形式上就实现了把B注入到A的效果。此外，两个Comp都要有一个抽象的val字段来代表将来被实例化出来的A或B。最后就是粘合各个组件，这需要第三个类，它同时继承Acomp和Bcomp，然后重写Comp里要求的val字段（在Scala里除了重写方法，还可以重写字段），来实例化A和B，这样，一切就都粘合并实例化好了。回到我们的例子，看看第三版的实现吧，基于蛋糕模式的标准实现：
-
-```scala
-trait EngineComponent {
-
-    trait Engine {
-        private var running = false
-        def start(): Unit = { /* as before */ }
-        def stop(): Unit = {/* as before */ }
-        def isRunning: Boolean = running
-        def fuelType: FuelType
-    }
-
-    protected val engine : Engine
-
-    protected class DieselEngine extends Engine {
-        override val fuelType = FuelType.Diesel
-    }
-
-}
-
-trait CarComponent {
-
-    this: EngineComponent => // gives access to engine
-
-    trait Car {
-        def drive(): Unit
-        def park(): Unit
-    }
-
-    protected val car: Car
-
-    protected class HondaCar extends Car {
-        override def drive() {
-            engine.start()
-            println("Vroom vroom")
-        }
-        override def park() { … }
-    }
-}
-
-//tie them all together
-object App extends CarComponent with EngineComponent with FuelTankComponent with GearboxComponent {
-    override protected val engine = new DieselEngine()
-    override protected val fuelTank = new FuelTank(capacity = 60)
-    override protected val gearBox = new FiveGearBox()
-    override val car = new HondaCar()
-}
-
-App.car.drive()
-
-App.car.park()
-
-```
-
-最后生产出的这个App.car是一辆Honda，柴油发动机，60升的油箱，5级变速。这一版实现繁杂了很多，但是有这样几个重点：
-
-​	HondaCar在实现过程中使用到了Engine,但是它即没有继承Engine也没实例化一个Engine字段，这和传统的依赖注入在效果上是无差别的，实际上就是实现了把Engine注入到HondaCar的目标。
-
-​	粘合互相依赖的组件的过程发生在App的定义中。所有的组件都预留了protected val的字段，留待组装粘合的时候实例化。
-
-​	主动要去依赖其他组件的组件必定要将依赖的组件声明成自身类型，以便在组件内部自由引用被依赖组件的成员和方法。
-
-### 蛋糕模式总结
-
-
-蛋糕模式完全依赖语言自身的特性，没有外部框架依赖，类型安全，可以获得编译期的检查。但缺点也是很明显的，代码复杂，配置不灵活。就个人而言，不太会选择使用。
-
+1、变量和数据类型
+	1、注释：
+		1、单行注释 //
+		2、多行注释 /* .. */
+		3、文档注释 /** ... */
+	2、标识符的命名规范
+		scala的标识符必须是字符、数字、_、$、特殊符号,首字母不能是数字[特殊符号不推荐使用是scala内部使用]
+		在工作中给参数命名的时候依然还是采用驼峰原则。
+	3、变量 ******
+		1、定义语法: val/var 变量名:类型 = 值
+		2、val与var的区别:
+			val修饰的变量类似java final修饰的,后续不能修改值
+			var修饰的变量可以修改值
+		3、scala在定义变量的时候,类型可以省略,省略之后scala会自动推断
+		4、scala中定义变量的时候必须初始化
+	4、字符串 ******
+		如何得到字符串:
+			1、通过""方式: val name = "lisi"
+			2、通过new方式: val name = new String("lisi")
+			3、通过拼接的方式:
+				1、通过+拼接:  val name = "aa"+"bb"
+				2、插值表达式[语法: s"${外部变量/表达式}"]: val name = s"${msg}"
+			4、通过一些方法: toString、subString、format
+				"%s %d %f".format(参数值,参数值,参数值)
+				%s是字符串的占位符
+				%d是整数的占位符
+				%f是浮点型的占位符
+			5、通过三引号的方式: val sql = """sql语句""" 【三引号中字符串的格式能够完整的保留,三引号一般用于写sql语句】
+	5、键盘输入
+		1、从控制台读取数据: StdIn.readLine(..)/readInt/readDouble/..
+		2、从文件读取数据: Source.fromFile(path,"utf-8").getLines()
+	6、数据类型  ******
+		Any: 所有类的父类
+			AnyVal: 值类型
+				Byte、Short、Int、Long、Float、Double、Char、Boolean
+				StringOps: 对java string的扩展
+				Unit: 相当于java的void, 有一个实例()
+			AnyRef: 引用类型
+				String、java class、scala class、java/scala 集合、数组
+					Null: 所有引用类型的子类, 有一个实例null [null一般用于给引用类型赋予初始值,在使用null赋予初始值的时候变量的类型必须指定]
+		Nothing: 所有类型的子类,scala内部使用
+	7、数值类型的转换 ******
+		1、数字与数字的转换
+			1、低精度转高精度[Int->Long]: 自动转换
+			2、高精度转低精度[Long->Int]: toXXX方法
+		2、数字与字符串的转换
+			1、数字转字符串: 
+				1、字符串拼接: 数字+"" 或者 s"${数字}"
+				2、通过toString方法
+			2、字符串转数字: toXXX方法
+2、运算符
+	1、算数运算符: +、-、*、/
+	2、逻辑运算符: &&、||、!
+	3、赋值运算符: =、+=、-=、*=、/=
+	4、比较运算符: ==、!=、>、<、>=、<=
+	5、位运算符: <<、>>、>>、&、|、^
+	scala中没有++、--、三元运算符
+	scala的运算符都是一个个的方法。
+	scala中方法调用的两种方式:
+		1、对象.方法名(参数值,..)
+		2、对象 方法名 (参数值,..) [如果方法的参数只有一个,()可以省略]
+3、流程控制
+	scala中没有switch关键字
+	1、块表达式 ******
+		1、定义: 由{}包裹的一块代码称之为块表达式,块表达式的返回值为{}中最后一个表达式的结果值
+	2、分支控制 ******
+		1、单分支: if(布尔表达式){..}
+		2、双分支: if(布尔表达式){..} else{..}
+		3、多分支: if(布尔表达式){..} else if(布尔表达式){..} .. else{..}
+		scala中if-else分值控制有返回值的,返回值为符合条件的分支的{}中最后一个表达式的结果值
+	3、for循环
+		1、两个重要方法:
+			1、to方法: 
+				语法: start.to(end)[.by(step)]
+				结果: to方法会生成一个集合,是左右闭合的集合[包含start与end]
+			2、until方法:
+				语法: start.until(end)[.by(step)]
+				结果: until方法会生成一个集合,是左闭右开的集合[包含start但是不包含end]
+		2、for基本语法: for(变量 <- 集合/数组/表达式){...}
+		3、步长: for(变量 <- start to/until end by step){...}
+		4、守卫: for(变量 <- 集合/数组/表达式 if(布尔表达式)){...} [此时只有if判断为true的时候,循环体{}里面的逻辑才会执行]
+		5、嵌套循环:  for(变量 <- 集合/数组/表达式 ; 变量2<- 集合/数组/表达式){...}
+		6、引入变量: for(变量 <- 集合/数组/表达式 ; 变量3=值 ;变量2<- 集合/数组/表达式){...} 
+		7、for循环默认没有返回值,如果想要让for循环有返回值,需要使用yield表达式
+			语法: for(变量 <- 集合/数组/表达式) yield{...}
+	4、while、do-while循环:scala while、do-while循环和java完全一样 
+	5、break与continue
+		break: 是结束循环
+		continue: 结束本次循环开始下一次循环
+		scala中没有break与continue关键字
+		scala实现break:
+			1、导入包: import scala.util.control.Breaks._
+			2、通过break、breakable两个方法实现
+			breakable({
+				for(i<- 1 to 10){
+					if(..) break()
+				}
+			})
+		scala实现continue:
+			1、导入包: import scala.util.control.Breaks._
+			2、通过break、breakable两个方法实现
+				for(i<- 1 to 10){
+					breakable({
+						if(..) break()
+					})
+				}
+4、函数式编程
+	方法就是函数,函数也是对象
+	1、方法
+		1、定义语法: def 方法名(参数名:参数类型,...):返回值类型 = {....}
+		2、方法简化原则:
+			1、如果是将方法体{}中最后一个表达式的结果值作为方法的返回值,此时返回值类型可以省略
+				如果方法体中有return,必须定义返回值类型
+				def add(x:Int,y:Int):Int = {x+y}
+				简化:
+				def add(x:Int,y:Int) = {x+y}
+			2、如果方法体{}中只有一行语句,此时{}可以省略
+				def add(x:Int,y:Int) = x+y
+			3、如果方法不需要返回值,此时=可以省略[=与{}不能同时省略]
+				def printHello():Unit = {println("hello...")}
+				简化:
+				def printHello(){println("hello...")}
+			4、如果方法不需要参数,定义方法的时候()可以省略
+				def printHello{println("hello...")}
+				1、如果定义方法的时候省略了(),那么在调用方法的时候不能有()
+				2、如果定义方法的时候有(),那么在调用方法的时候()可有可无
+		3、方法的参数:
+			1、默认值参数: [在定义方法的时候给参数一个默认值,有默认值的参数后续在调用方法的时候可以不用传值]
+				语法: def 方法名(参数名:类型=默认值,...):返回值类型 = {...}
+				带有默认值的参数最好放在参数列表的最后面
+			2、带名参数: 在调用方法的时候指定将值传递方法的哪个参数
+				def add(x:Int=10,y:Int) = x+y
+				带名参数: add(y=20)
+			3、可变参数：在调用方法的时候,参数的个数不确定
+				语法: def 方法名(参数名:类型,参数名:类型,..,参数名:类型*):返回值类型 = {...}
+				注意事项:
+					1、可变参数必须放在参数列表最后面
+					2、可变参数不能与默认值参数一起使用
+				scala的可变参数不能直接传递数组/集合,如果想要将数组/集合的所有元素传递给可变参数,必须通过: 数组名/集合名:_*
+	2、函数
+		1、定义语法: val 函数名 = (参数名:参数类型,...) => {...}
+		2、函数的简化: 如果函数体{}中只有一行语句,此时{}可以省略
+		3、函数是一个对象,函数名就是对象的引用。
+		4、函数的类型: (参数类型,参数类型,..)=>返回值类型
+	3、方法和函数的区别与联系
+		区别:
+			1、方法如果定义在class/object中,此时方法可以重载,函数不可以重载
+			2、方法如果定义在class/object中,此时方法存储在方法区中,函数是对象存储在堆中
+		联系:
+			1、scala中方法可以定义在任何位置,方法如果定义在方法中,此时是作为函数处理,不能重载
+			2、方法可以转成函数,通过: 方法名 _
+	4、高阶函数
+		1、定义: 以函数作为参数或者是返回值的方法/函数称之为高级函数 [因为函数是对象,所以可以作为参数以及返回值]
+			def add(x:Int,y:Int,func: (Int,Int)=>Int ) = func(x,y)
+			val func = (x:Int,y:Int) => x+y
+			add(10,20,func)
+		2、高阶函数简化:
+			1、直接将函数作为值传递给方法的参数:
+				add(10,20,(x:Int,y:Int) => x+y)
+			2、可以省略函数的参数类型
+				add(10,20,(x:Int,y:Int) => x+y)
+			3、如果函数的参数在函数体中只使用了一次，那么可以用_代替<第一个_代表第一个参数,第N个_代表第N个参数>: add(10,20,_+_)
+				以下几种情况不能用_代替:
+					1、如果函数的参数的使用顺序与定义的顺序不一致,不能用_代替:
+						比如: add(10,20,(x:Int,y:Int) => y-x) 此时不能简化为: add(10,20,_-_)
+					2、如果函数只有一个参数,在函数体中没有做任何操作直接将参数返回,此时不能用_代替
+						def sum(x:Int,func: (Int)=>Int) = func(x)
+						sum(10,x=>x) 此时不能简化为: sum(10,_)
+					3、如果函数体中有(),而且函数的参数在函数体中的()中以表达式的形式存在的时候,不能用_代替:
+						sum(10,x=>(x+1)*20) 此时不能简化为: sum(10,(_+1)*20) ,此时scala会解析成: sum(10,(x=>x+1)*20)
+			4、如果函数只有一个参数,此时函数的参数列表的()可以省略
+				sum(10,(x)=>x) 
+				简化:
+				sum(10,x=>x)
+	5、匿名函数
+		定义: 没有函数名的函数称之为匿名函数
+		匿名函数一般作为值传递给高阶函数作为参数
+	6、函数柯里化与闭包
+		1、柯里化
+			1、定义: 有多个参数列表的方法称之为柯里化
+				def add(x:Int,y:Int)(z:Int) = x+y+z
+				add(10,20)(30)
+			2、函数是对象,所以可以将函数作为返回值进行返回
+				def add(x:Int,y:Int) = {
+					(z:Int)=>x+y+z
+				}
+				add(10,20)(30)
+		2、闭包
+			1、定义: 函数体中使用了外部变量的函数称之为闭包
+				val a = 10
+				val func = (x:Int)=>x+a
+	7、递归
+		1、定义: 自己调用自己称之为递归
+		2、递归必须满足两个条件:
+			1、在函数体/方法体中要有退出条件
+			2、必须定义返回值类型
+			def m1(n:Int):Int = {
+				if(n==1) 1
+				else n * m1(n-1)
+			}
+	8、控制抽象
+		1、定义: 控制抽象是块表达式的特殊形式,只能作为方法的参数类型使用,代表后续在方法体中可以将控制抽象当做函数调用,在调用的时候不能带上()
+		2、语法:  =>返回值类型 [代表后续需要传入一个块表达式,块表达式的结果值类型就是定义的返回值类型]
+			def add(func: =>Int){
+				func //调用控制抽象,当成函数调用
+			}
+			add({
+				println(".......")
+				10
+			})
+	9、惰性求值
+		1、语法: lzay val 变量名:类型 = 值
+		2、lazy标识的变量不会立即初始化,而是等到变量真正使用的时候才会初始化
+5、面向对象
+	1、包
+		包的使用：
+			1、导包
+				1、导入包下所有类: import 包名._
+				2、导入包下某个类：import 包名.类名
+				3、导入包下某几个类: import 包名.{类名1,类名2,..}
+				4、导入包下某个类,并起别名: import 包名.{类名=>别名}
+				5、导入包下除开某个类的所有类: import 包名.{类名=>_,_}
+				scala可以在任何地方导入包
+			2、声明包: package 包名 [必须在源文件第一行]
+			3、创建包: 
+				语法: package 包名{......}
+				此种形式创建的包在项目结构下看不到,只能在target编译目录看到
+			4、包对象
+				语法: package object 包名{....}
+				包对象中定义的非private修饰的属性/方法/函数可以在包中任何地方使用
+			5、包与访问修饰符结合使用: private[包名] <代表修饰的成员只能在当前包中使用,其他包不能使用>
+	2、类和对象
+		1、定义类: class 类名{...}
+		2、创建对象: new 类名(..)
+		3、class中定义属性和方法
+			1、定义属性: 访问修饰符 val/var 变量名:类型 = 值
+				private修饰的属性只能在class内部使用
+				scala中没有public的,默认就是Public效果
+				class中var定义的属性可以使用_赋予初始值,在使用_赋予初始值的时候变量的类型必须定义
+			2、定义方法: 访问修饰符 def 方法名(参数名:参数类型,..):返回值类型 = {..}
+		4、构造器
+			scala中构造器分为: 主构造器、辅助构造器
+				主构造器
+					1、定义位置: 主构造器定义在类名后面通过(..)表示
+					2、语法： class 类名([访问修饰符] [val/var] 属性名:类型=默认值,...)
+						val/var修饰的属性与不带val/var修饰的属性的区别:
+							val/var修饰非private的属性在class内部和外部都可以使用
+							不带val/var修饰的属性只能在class内部使用
+				辅助构造器 
+					1、定义位置: 定义在class内部
+					2、语法: 
+						def this(参数名:类型,..){
+							//第一行必须调用主构造器或者是其他的辅助构造器
+						}
+		5、封装
+			很多java的api底层都需要属性的set/get方法,所以scala中为了兼容java,提供了一个注解@BeanProperty能够自动生成java的set/get方法
+			@BeanProperty不能与private结合使用
+		6、继承
+			1、语法: class 子类 extends 父类
+			2、哪些不能被继承:
+				1、final修饰的class不能被继承
+				2、private修饰的成员不能被继承
+			3、子类如果觉得父类的成员不适用可以通过override关键字重写
+			4、override只能重写方法以及val修饰的属性,var修饰的属性不能通过override重写
+		7、抽象类
+			1、语法: abstract class 类名{..}
+			2、抽象类中既可以定义抽象方法也可以定义具体方法,既可以定义抽象属性也可以定义具体属性
+			3、抽象方法: 没有方法体的方法称之为抽象方法【在定义抽象方法的时候必须指定方法的返回值类型,如果没有指定默认是Unit】
+			4、抽象属性: 没有赋予初始值的属性称之为抽象属性
+			5、子类继承抽象父类之后,必须重写父类的抽象方法和抽象属性
+			6、匿名子类:  new 抽象类{ 重写父类的抽象方法和抽象属性 }
+		8、单例对象
+			1、语法: object object名称{...}
+			2、如何得到单例对象: 通过 object名称 获取
+			3、单例对象中的所有的属性/方法都是类似java static修饰的,所以可以通过 object名称.属性/方法 的形式调用
+			4、class中的所有属性/方法都是类似java 非static修饰的
+		9、伴生类和伴生对象
+			伴生类和伴生对象的两个条件:
+				1、class与object名称必须一样
+				2、class与object必须在同一个.scala源文件中
+				此时class称为伴生类,object称为伴生对象
+			伴生类和伴生对象可以互相访问对方的private修饰的成员
+			apply方法:
+				1、定义: apply方法定义在伴生对象中
+				2、作用: 用于简化伴生类对象的创建,其实就是在调用apply方法的时候返回一个伴生类的对象
+			有了apply方法之后,创建伴生类对象的方式: object名称(参数值,..)/object名称.apply(参数值,..)
+		10、特质
+			1、语法: trait 特质名{...}
+			2、特质中既可以定义抽象方法也可以定义具体方法,既可以定义抽象属性也可以定义具体属性
+			3、scala中class只能单继承,但是trait可以多实现
+			4、特质混入: 让某一个对象拥有特质的属性和方法
+				语法: new 类名(..) with 特质名
+			5、特质叠加
+				scala可以多实现,如果子类实现了多个trait,这多个trait中都一个同名方法,参数列表也一样,此时子类的对象在调用该同名方法的时候默认会报错。可以在子类中通过重写同名方法解决报错问题。
+				子类重写同名方法之后,如果需要在方法体中调用父trait的同名方法,可以通过 super.同名方法/super[特质名].同名方法 的形式调用
+					super.同名方法 调用的继承顺序最后一个trait的同名方法
+					super[特质名].同名方法 调用的指定trait的同名方法
+				如果子类继承的多个父trait都有一个共同的父trait,而且在方法中都有通过super调用同名方法,此时方法的调用顺序是按照继承顺序从右向左开始调用
+			6、特质的自身类型: 提醒子类在继承/实现trait的时候必须提前继承/实现指定class/trait
+				1、语法:  this:类型=>
+		11、类型检查和判断
+			1、判断对象是否属于某个类型: 对象.isInstanceOf[类型]
+			2、强转: 对象.asInstanceOf[类型]
+			3、获取类的class形式: classOf[类型]
+			4、获取对象的class形式: 对象.getClass
+		12、新类型: 就是给指定类型起别名
+			语法:   type 别名 = 类型
+6、集合
+	scala的集合分为可变和不可变集合。
+		可变代表集合的长度可变[可以增加、删除元素]
+		不可变集合代表集合的长度不可变[不可以增加、删除元素]
+	可变集合
+		1、可变数组:
+			1、创建方式:
+				1、通过apply方法: ArrayBuffer[元素类型](初始元素,初始元素,..)
+				2、通过new方式: new ArrayBuffer[元素类型]()
+			2、修改元素: 数组名(角标)=值
+			3、获取元素: 数组名(角标)
+			4、可变数组转不可变数组: 数组名.toArray
+			5、多维数组: Array.ofDim(行数,列数)
+		2、不可变List
+			1、创建方式
+				1、通过apply方法： ListBuffer[元素类型](初始元素,初始元素,..)
+				2、通过new方式: new ListBuffer[元素类型]()
+			2、修改元素: list变量名(角标) = 值 / list变量名.update(角标,值)
+			3、获取元素: list变量名(角标)
+		3、可变Set
+			Set的里面元素不重复无序的
+			1、创建方式: 
+				1、通过apply方法： mutable.Set[元素类型](初始元素,初始元素,..)
+			Set集合不可以修改元素,不可以通过角标获取元素
+		4、可变Map
+			1、创建方式:
+				1、通过apply方法
+					mutable.Map[K的类型,V的类型]( (K,V),(K,V),.. )
+					mutable.Map[K的类型,V的类型]( K->V,K->V,... )
+				2、修改元素: map(key)=value / map.put(key,value)
+				3、获取元素: getOrElse(Key,默认值) 【如果key在map中不存在则返回默认值,如果存在则返回key对应的value值】
+		5、可变队列
+			1、创建方式:
+				1、通过apply方法: 	mutable.Queue[元素类型](初始元素,初始元素,..)
+			2、添加元素: enqueue(元素)
+			3、删除元素: dequeue() 
+			4、修改元素: 队列名.update(角标,值)/ 队列名(角标)=值
+			5、获取元素: 队列名(角标)
+	不可变集合
+		1、不可变数组:
+			1、创建方式:
+				1、通过apply方法: Array[元素类型](初始元素,初始元素,..)
+				2、通过new方式: new Array[元素类型](数组的长度)
+			2、修改元素: 数组名(角标)=值
+			3、获取元素: 数组名(角标)
+			4、不可变数组转可变数组: 数组名.toBuffer
+		2、不可变List
+			1、创建方式
+				1、通过apply方法： List[元素类型](初始元素,初始元素,..)
+				2、通过 :: 方式:   初始元素 :: 初始元素 :: ... :: Nil/不可变List集合
+					Nil代表是一个空不可变List
+					Nil与不可变List的关系类似Null与String的关系
+					Nil一般用于给不可变List赋予初始值,此时必须指定变量的类型
+					:: 最后面必须是Nil或者是不可变List
+			2、添加元素:
+				:: [都会生成一个新集合,原有集合没有改变]
+				::: 添加一个集合所有元素[都会生成一个新集合,原有集合没有改变]
+			2、修改元素: 不可修改,只能通过updated的方式创建一个新新集合
+			3、获取元素: list变量名(角标)
+			4、list转数组: 数组名.toArray/数组名.toBuffer
+		3、不可变Set
+			Set的里面元素不重复无序的
+			1、创建方式: 
+				1、通过apply方法： Set[元素类型](初始元素,初始元素,..)
+			Set集合不可以修改元素,不可以通过角标获取元素
+		4、不可变Map
+			1、创建方式:
+				1、通过apply方法
+					Map[K的类型,V的类型]( (K,V),(K,V),.. )
+					Map[K的类型,V的类型]( K->V,K->V,... )
+				2、修改元素:不可修改,只能通过updated的方式创建一个新集合
+				3、获取元素: getOrElse(Key,默认值) 【如果key在map中不存在则返回默认值,如果存在则返回key对应的value值】
+		5、不可变队列
+			1、创建方式:
+				1、通过apply方法: 		Queue[元素类型](初始元素,初始元素,..)
+			2、添加元素: enqueue(元素) [都会生成一个新集合,原集合没有改变]
+			3、删除元素: dequeue() [都会生成一个新集合,原集合没有改变]
+			4、修改元素: 队列名.updated(角标,值) [都会生成一个新集合,原集合没有改变]
+			5、获取元素: 队列名(角标)
+	scala集合添加、删除元素通用方法: +:、:+、+=、+=:、++、++=、++：、++=：、-、-=、--、--=
+		一个+/-与两个+/-的区别:
+			一个+/-是添加/删除单个元素
+			两个+/-是添加/删除一个集合所有元素
+		带=与不带=的区别:
+			带=是修改原集合
+			不带=是生成一个新集合,原集合没有改变
+		冒号在前与冒号在后与不带冒号的区别:
+			冒号在前是将元素添加在集合最末尾
+			冒号在后是将元素添加在集合最前面
+			不带冒号是将元素添加在集合最末尾
+	元组:
+		1、创建方式:
+			1、通过()方式: (初始元素,...)
+			2、二元元组还可以通过->方式:  Key->Value
+			scala中二元元组表示KV键值对
+		2、scala中元组一旦定义,元素以及长度都不可改变
+		3、元组的取值: 元组名._角标 [元组的角标从1开始]
+	集合常用函数
+		1、基本属性:
+			1、获取集合长度: size/length ****
+			2、判断集合是否包含某个元素: contains
+			3、判断集合是否为空: isEmpty ****
+			4、将集合转成字符串: mkString(分隔符) ****
+		2、衍生集合
+			1、去重: distinct ****
+			2、获取集合第一个元素: head ****
+			3、获取集合最后一个元素: last ****
+			4、获取集合前几个元素： take(n) ****
+			5、获取集合最后几个元素： takeRight(n)
+			6、获取除开第一个元素的其他所有元素: tail
+			7、获取除开最后一个元素的其他所有元素: init
+			8、获取除开前N个元素的所有元素: drop(n)
+			9、获取除开最后N个元素的所有元素: dropRight(n)
+			10、交集: intersect
+			11、差集[A差B的结果就是获取A中有B中没有的元素]: diff
+			12、并集: union
+			13、拉链: zip [拉链的时候如果一长一短会抛弃多的部分]
+			14、反拉链: unzip
+			15、滑窗: sliding(窗口长度,滑动长度)****
+			16、获取指定角标范围内的所有元素: slice(from,until)
+			17、反转: reverse ****
+			18、将元素与角标拉链: zipWithIndex ****
+		3、初级计算函数
+			1、获取最小值: min ****
+			2、获取最大值: max ****
+			3、根据指定规则获取最小值: minBy(func: 集合元素类型 => B)
+				minBy里面的函数是针对集合每个元素操作
+				后续是根据函数的返回值来去元素的最小值
+			4、根据指定规则获取最大值: maxBy(func: 集合元素类型 => B)
+				maxBy里面的函数是针对集合每个元素操作
+				后续是根据函数的返回值来去元素的最小值
+			5、排序:
+				1、根据元素本身排序[默认升序]: sorted
+				2、根据指定字段排序[默认升序]: sortBy(func: 集合元素类型=>B) ****
+					sortBy里面的函数是针对集合每个元素操作
+					sortBy是根据函数的返回值进行排序
+				3、根据指定排序规则排序: sortWith(func: (集合元素类型,集合元素类型)=>Boolean)
+					第一个参数<第二参数是升序
+					第一个参数>第二参数是降序
+			6、求和: sum ****
+		4、高级函数
+			1、filter(func: 集合元素类型=>Boolean): 过滤
+				filter里面的函数是针对集合每个元素操作
+				filter保留的是函数返回值为true的数据
+			2、map(func: 集合元素类型=>B): 映射[数据转换<值的转换与类型的转换>]
+				map里面的函数是针对集合每个元素操作
+				map操作完成之后会生成一个新集合,该新集合的长度与原集合长度一样的
+				map的场景: 一对一
+			3、flatten: 压平
+				flatten针对的是集合嵌套集合的数据格式
+				flatten是将第二层集合压掉
+				flatten操作也会生成一个新集合,该新集合的长度>=原集合长度
+				flatten的场景:一对多
+			4、flatMap(func: 集合元素类型 => 集合) = map+flatten: 数据转换+压平
+				flatMap里面的函数是针对集合每个元素操作
+				flatMap操作也会生成一个新集合,该新集合的长度>=原集合长度
+				flatMap里面的函数的返回值必须是集合,因为后续要实现flatten操作
+				flatMap的场景:一对多
+				flatMap与flatten的区别:
+					flatten只能进行压平的操作
+					flatMap是先转换数据再压平
+			5、foreach(func:集合元素类型=>B )： 针对每个元素操作,操作之后不需要返回结果
+				foreach和map区别: map有返回值,foreach没有返回值
+			6、groupBy(func: 集合元素类型 => K)： 根据指定字段分组
+				groupBy里面的函数是针对集合每个元素操作
+				groupBy在分组的时候是根据函数的返回值进行分组
+				groupBy的结果类型是Map,Map的key是函数返回值,Map的Value值是key对应原集合中的所有元素
+			7、reduce(func: (集合元素类型,集合元素类型)=>集合元素类型): 根据指定规则对集合所有元素聚合
+				reduce计算是从左向右计算
+				reduce函数第一个参数代表上一次聚合结果[第一次计算的时候该参数的初始值=集合第一个元素],第二个参数代表当前要聚合的元素
+			8、reduceRight(func: (集合元素类型,集合元素类型)=>集合元素类型): 根据指定规则对集合所有元素聚合
+				reduceRight是从右向左计算
+				reduceRight函数第一个代表当前要聚合的元素,第二个参数代表的是上一次聚合结果[第一次计算的时候该参数的初始值=集合最后一个元素]
+			9、fold(初始值)(func: (集合元素类型,集合元素类型)=>集合元素类型)：根据指定规则对集合所有元素聚合
+				fold与reduce唯一的区别在于:
+					fold的第一个参数在第一次计算的时候,初始值=指定的默认值
+					reduce的第一个参数在第一次计算的时候,初始值=集合第一个元素
+			10、foldRight(初始值)(func: (集合元素类型,集合元素类型)=>集合元素类型)：根据指定规则对集合所有元素聚合
+				foldRight与reduceRight的唯一区别:
+					foldRight的第二个参数在第一次计算的时候,初始值=指定的默认值
+					reduceRight的第二个参数在第一次计算的时候,初始值=集合最后一个元素
+	并行集合: 对集合元素操作的时候采用多线程的方式
+		将普通集合转成并行集合: 集合名.par
+7、模式匹配
+	1、基本语法:
+		变量 match {
+			case 条件 => {....}
+			case 条件 => {....}
+			case 条件 => {....}
+			//相当于java switch的default
+			case x => {...} [如果=>右边不需要使用变量x,可以使用_代替 case _ => {...}]
+		}
+		模式匹配有返回值,返回值就是符合条件分支的块表达式的结果值
+	2、守卫
+		变量 match {
+			case 条件 if(布尔表达式) => {....}
+			case 条件 if(布尔表达式) => {....}
+			case 条件 if(布尔表达式) => {....}
+			//相当于java switch的default
+			case x => {...} [如果=>右边不需要使用变量x,可以使用_代替 case _ => {...}]
+		}
+	3、匹配值:
+		变量 match {
+			case 值1 => {....}
+			case 值2 => {....}
+			case 值3 => {....}
+			//相当于java switch的default
+			case x => {...} [如果=>右边不需要使用变量x,可以使用_代替 case _ => {...}]
+		}
+		如果在模式匹配外面定义了一个变量,后续在匹配条件中想要使用该变量,需要将变量名首字母变成大写
+	4、匹配类型
+		变量 match {
+			case x:类型1 => {....}
+			case x:类型2 => {....}
+			case x:类型3 => {....}
+			//相当于java switch的default
+			case x => {...} [如果=>右边不需要使用变量x,可以使用_代替 case _ => {...}]
+		}
+	5、匹配数组
+		变量 match{
+			case Array(x) => 匹配数组只有一个元素
+			case Array(x,y,z) => 匹配数组有三个元素
+			case Array(x:类型1,y:类型2,z:类型3) => 匹配数组有三个元素,类型分别为...
+			case Array(x,_*) => 匹配数组至少有一个元素
+		}
+	6、匹配List
+		变量 match{
+			case List(x) => 匹配数组只有一个元素
+			case List(x,y,z) => 匹配数组有三个元素
+			case List(x:类型1,y:类型2,z:类型3) => 匹配数组有三个元素,类型分别为...
+			case List(x,_*) => 匹配数组至少有一个元素
+		}
+		
+		变量 match{
+			case x :: Nil => 匹配数组只有一个元素
+			case x :: y :: z :: Nil => 匹配数组有三个元素
+			case (x:类型1) :: (y:类型2) :: (z:类型3) :: Nil => 匹配数组有三个元素,类型分别为...
+			case x :: tail => 匹配数组至少有一个元素[tail也是一个变量,代表的是剩余所有元素的集合]
+		}
+	7、匹配元组
+		val t = ("zhangsan",20)
+		t match{
+			case (name,age) => ..
+		}
+		匹配元组的到时候,变量是几元元组,匹配条件就只能是几元元组
+	8、变量定义的时候的模式匹配
+		val (name,age) = ("zhangasn",20)
+		val List(x) = List(1)
+		val Array(x,_*) = Array(1,2,3)
+	9、偏函数
+		1、定义: 没有match关键字的模式匹配称之为偏函数
+		2、语法:
+			val 函数名:PartialFunction[IN,OUT] = {
+				case 条件 => {...}
+				case 条件 => {...}
+				case 条件 => {...}
+			}
+			IN: 代表函数的入参类型
+			OUT: 代表函数的返回值类型
+		3、工作中的应用场景：
+			集合元素类型为元组的时候,此时使用map、flatMap等方法的时候,为了代码的可读性可以使用偏函数操作数据
+			val list = List( ("aa",1),("bb",2))
+			list.map{
+				case (x,y) => (x,y*y)
+			}
